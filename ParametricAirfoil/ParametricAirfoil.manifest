@@ -1,0 +1,13 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "addin",
+    "author": "Syed Mujahid",
+    "description": {
+        "": "Parametric Airfoil by Syed Mujahid - creates airfoil sketches (Clark Y, NACA 0009 or any .dat file) driven by chord and trailing-edge thickness user parameters, so the wing can be resized any time."
+    },
+    "editEnabled": true,
+    "id": "d0c0b128-fe52-4b2f-bdff-7190d2a826b2",
+    "runOnStartup": true,
+    "supportedOS": "windows|mac",
+    "version": "1.0.0"
+}
