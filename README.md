@@ -70,10 +70,10 @@ I hit this while designing a VTOL UAV from scratch in Fusion. Existing airfoil a
 
 Each airfoil is reduced to cosine-spaced stations along the chord. The spline runs upper trailing edge → leading edge → lower trailing edge, and each fit point gets two driving dimensions:
 
-- **horizontal** from the origin: `RootChord * x`
-- **vertical** from a reference point one chord below the origin: `RootChord * (1 + y) ± TE_Thk * x/2`
+- **along the chord** from the origin: `RootChord * x`
+- **across the chord** from a reference point one chord below the origin: `RootChord * (1 + y) ± TE_Thk * x/2`
 
-Measuring vertically from a point below the airfoil keeps every dimension positive, so cambered profiles never produce zero-length or flipped dimensions. The leading edge is coincident with the sketch origin, and a line closes the blunt trailing edge, so the result is one closed, fully constrained profile.
+Measuring thickness from a point below the airfoil keeps every dimension positive, so cambered profiles never produce zero-length or flipped dimensions. The leading edge is coincident with the sketch origin, and a line closes the blunt trailing edge, so the result is one closed, fully constrained profile.
 
 The geometry code in [`airfoil_core.py`](ParametricAirfoil/airfoil_core.py) is plain Python and can be tested without Fusion:
 
