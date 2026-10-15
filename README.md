@@ -47,7 +47,7 @@ I hit this while designing a VTOL UAV from scratch in Fusion. Existing airfoil a
 
 ### Option A – from GitHub
 
-1. Download this repository: **Code → Download ZIP**, and unzip it.
+1. Download **[ParametricAirfoil-1.0.0.zip](https://github.com/syedmujahid7040/parametric-airfoil-fusion360/releases/latest)** from the latest release and unzip it.
 2. In Fusion, open **UTILITIES → ADD-INS → Scripts and Add-Ins** (or press **Shift + S**).
 3. Click **+** (*Script or add-in from my computer*) and select the **`ParametricAirfoil`** folder (the one containing `ParametricAirfoil.manifest`).
 4. Select **Parametric Airfoil** in the list, click **Run**, and turn on **Run on Startup**.
