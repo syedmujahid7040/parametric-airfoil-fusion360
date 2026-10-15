@@ -23,8 +23,8 @@ CMD_TOOLTIP = ('Parametric Airfoil by Syed Mujahid\n\n'
                'Create an airfoil sketch whose chord and trailing-edge thickness are user parameters. '
                'Pick Clark Y, NACA 0009 or any .dat file, choose a plane, and change the chord any time '
                'in Change Parameters.')
-PANEL_ID = 'SolidScriptsAddinsPanel'          # UTILITIES > ADD-INS (Autodesk asks add-ins to use existing panels)
-WORKSPACE_ID = 'FusionSolidEnvironment'
+PANEL_ID = 'SolidCreatePanel'                 # SOLID > CREATE (an existing panel, as Autodesk asks)
+OLD_PANEL_IDS = ['SolidScriptsAddinsPanel']   # where version 1.0.0 placed the button
 IMPORT_ITEM = 'Import .dat file...'
 HERE = os.path.dirname(os.path.abspath(__file__))
 RESOURCES = os.path.join(HERE, 'resources', 'ParametricAirfoil')
@@ -56,16 +56,21 @@ def run(context):
         cmd_def.commandCreated.add(on_created)
         _handlers.append(on_created)
 
+        for old_id in OLD_PANEL_IDS:
+            old = _ui.allToolbarPanels.itemById(old_id)
+            if old and old.controls.itemById(CMD_ID):
+                old.controls.itemById(CMD_ID).deleteMe()
+
         panel = _ui.allToolbarPanels.itemById(PANEL_ID)
         if panel and not panel.controls.itemById(CMD_ID):
             ctrl = panel.controls.addCommand(cmd_def)
-            ctrl.isPromotedByDefault = True
+            ctrl.isPromotedByDefault = True       # icon shown directly on the SOLID > CREATE toolbar
             ctrl.isPromoted = True
 
         if not context.get('IsApplicationStartup', True):
             # started manually from Scripts and Add-Ins: tell the user where the button is
             _ui.messageBox('Parametric Airfoil is ready.\n\nFind it in the DESIGN workspace under\n'
-                           'UTILITIES > ADD-INS > Parametric Airfoil.', CMD_NAME)
+                           'SOLID > CREATE > Parametric Airfoil.', CMD_NAME)
     except Exception:
         if _ui:
             _ui.messageBox('Parametric Airfoil failed to start:\n' + traceback.format_exc())
@@ -73,9 +78,9 @@ def run(context):
 
 def stop(context):
     try:
-        panel = _ui.allToolbarPanels.itemById(PANEL_ID)
-        if panel:
-            ctrl = panel.controls.itemById(CMD_ID)
+        for pid in [PANEL_ID] + OLD_PANEL_IDS:
+            panel = _ui.allToolbarPanels.itemById(pid)
+            ctrl = panel.controls.itemById(CMD_ID) if panel else None
             if ctrl:
                 ctrl.deleteMe()
         cmd_def = _ui.commandDefinitions.itemById(CMD_ID)
@@ -133,6 +138,10 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             sel.addSelectionFilter('PlanarFaces')
             sel.setSelectionLimits(1, 1)
             sel.tooltip = 'The airfoil is drawn on this plane with its leading edge at the sketch origin.'
+            try:
+                sel.addSelection(design.rootComponent.xYConstructionPlane)   # XY plane by default
+            except Exception:
+                pass
 
             chord_name = inputs.addStringValueInput('chordname', 'Chord parameter', 'RootChord')
             chord_name.tooltip = 'Name of the user parameter that drives the chord. Use a new name (e.g. TailChord) for a second airfoil.'
@@ -147,6 +156,9 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 
             res = inputs.addIntegerSpinnerCommandInput('points', 'Points per surface', 15, 61, 1, 25)
             res.tooltip = 'Spline points on each of the upper and lower surfaces (25 is plenty for most wings).'
+
+            look = inputs.addBoolValueInput('lookat', 'Look at airfoil', True, '', True)
+            look.tooltip = 'Turn the view to face the sketch plane, so the airfoil is shown flat with the leading edge on the left.'
 
             inputs.addTextBoxCommandInput(
                 'note', '',
@@ -242,7 +254,8 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 chord_name=inputs.itemById('chordname').value.strip(),
                 chord_cm=inputs.itemById('chord').value,
                 te_name=inputs.itemById('tename').value.strip(),
-                te_cm=inputs.itemById('te').value)
+                te_cm=inputs.itemById('te').value,
+                look_at=inputs.itemById('lookat').value)
             _ui.messageBox(msg, CMD_NAME)
         except core.AirfoilError as e:
             _ui.messageBox('Airfoil data problem: %s' % e, CMD_NAME)
@@ -273,7 +286,39 @@ def _resolve_plane(entity, design):
     return comp, native
 
 
-def build_airfoil(plane, label, X, YU, YL, chord_name, chord_cm, te_name, te_cm):
+def look_at_sketch(sk, chord):
+    """Point the camera straight at the sketch plane: sketch X to the right, sketch Y up, so the airfoil
+    is seen flat (like a 2D drawing) with the leading edge on the left, whichever plane was used."""
+    m = sk.transform                                   # sketch space -> model space
+    o = adsk.core.Point3D.create(0.5 * chord, 0, 0)
+    o.transformBy(m)
+    xd = adsk.core.Vector3D.create(1, 0, 0); xd.transformBy(m)
+    yd = adsk.core.Vector3D.create(0, 1, 0); yd.transformBy(m)
+    n = xd.crossProduct(yd); n.normalize(); yd.normalize()
+    comp = sk.parentComponent
+    design = _design()
+    if comp != design.rootComponent:                   # sketch in a sub-component: go to world space
+        occs = design.rootComponent.allOccurrencesByComponent(comp)
+        if occs.count:
+            t = occs.item(0).transform2
+            o.transformBy(t); yd.transformBy(t); n.transformBy(t)
+    vp = _app.activeViewport
+    cam = vp.camera
+    cam.isSmoothTransition = True
+    cam.cameraType = adsk.core.CameraTypes.OrthographicCameraType
+    cam.target = o
+    eye = o.copy()
+    n.scaleBy(4 * chord)
+    eye.translateBy(n)
+    cam.eye = eye
+    cam.upVector = yd
+    cam.isFitView = False
+    cam.viewExtents = 0.75 * chord                     # frame the airfoil itself, not the whole model
+    vp.camera = cam
+    vp.refresh()
+
+
+def build_airfoil(plane, label, X, YU, YL, chord_name, chord_cm, te_name, te_cm, look_at=True):
     design = _design()
     comp, plane_ent = _resolve_plane(plane, design)
 
@@ -341,6 +386,11 @@ def build_airfoil(plane, label, X, YU, YL, chord_name, chord_cm, te_name, te_cm)
         sk.areDimensionsShown = False                # ~100 dimensions would clutter the canvas
     except Exception:
         pass
+    if look_at:
+        try:
+            look_at_sketch(sk, chord)
+        except Exception:
+            pass                                     # the view is a convenience; never fail the command
 
     def pinfo(p, new):
         return '%s = %s%s' % (p.name, p.expression, '' if new else '  (existing parameter reused)')

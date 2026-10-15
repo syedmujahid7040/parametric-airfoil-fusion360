@@ -51,7 +51,7 @@ Built by Syed Mujahid while designing a VTOL UAV from scratch.
 
 ### Quick-start / help page
 
-1. In the DESIGN workspace click UTILITIES > ADD-INS > Parametric Airfoil.
+1. In the DESIGN workspace click SOLID > CREATE > Parametric Airfoil (airfoil icon on the toolbar).
 2. Choose Clark Y, NACA 0009, or Import .dat file....
 3. Select a plane. The leading edge is placed on the sketch origin, chord along +X.
 4. Enter the chord parameter name and chord length (e.g. RootChord = 280 mm) and the trailing-edge thickness (1 mm recommended).
@@ -71,6 +71,6 @@ Uninstall: UTILITIES > ADD-INS > Scripts and Add-Ins, stop the add-in, or uninst
 ## 4. Before submitting
 
 - [ ] Add-in loads in under 0.005 s at startup (it only adds one button; geometry code runs on click)
-- [ ] Button appears under UTILITIES > ADD-INS, no new toolbar panel
+- [ ] Button appears in the existing SOLID > CREATE panel, no new toolbar panel
 - [ ] Tested on the current Fusion version on Windows (and Mac if available)
 - [ ] Version number increased for every resubmission
