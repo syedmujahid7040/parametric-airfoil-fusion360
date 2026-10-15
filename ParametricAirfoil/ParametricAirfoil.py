@@ -26,6 +26,8 @@ CMD_TOOLTIP = ('Parametric Airfoil by Syed Mujahid\n\n'
 PANEL_ID = 'SolidCreatePanel'                 # SOLID > CREATE (an existing panel, as Autodesk asks)
 OLD_PANEL_IDS = ['SolidScriptsAddinsPanel']   # where version 1.0.0 placed the button
 IMPORT_ITEM = 'Import .dat file...'
+HELP_URL = 'https://github.com/syedmujahid7040/parametric-airfoil-fusion360#how-to-use'
+PRIVACY_URL = 'https://github.com/syedmujahid7040/parametric-airfoil-fusion360/blob/main/PRIVACY.md'
 HERE = os.path.dirname(os.path.abspath(__file__))
 RESOURCES = os.path.join(HERE, 'resources', 'ParametricAirfoil')
 
@@ -160,7 +162,11 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 'note', '',
                 '<i>If a parameter with that name already exists it is reused (its current value wins), '
                 'so several sketches can share one chord.</i>', 3, True)
-            inputs.addTextBoxCommandInput('credit', '', '<small>Parametric Airfoil by Syed Mujahid</small>', 1, True)
+            inputs.addTextBoxCommandInput(
+                'credit', '',
+                '<small>Parametric Airfoil by Syed Mujahid &nbsp;·&nbsp; '
+                '<a href="%s">Help</a> &nbsp;·&nbsp; <a href="%s">Privacy policy</a></small>' % (HELP_URL, PRIVACY_URL),
+                1, True)
 
             for h, ev in ((ExecuteHandler(), cmd.execute),
                           (InputChangedHandler(), cmd.inputChanged),

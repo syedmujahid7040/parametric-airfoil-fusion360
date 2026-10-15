@@ -100,6 +100,10 @@ Ideas and pull requests are welcome — open an [issue](../../issues).
 **Syed Mujahid** — built while designing a VTOL UAV from scratch.
 GitHub: [@syedmujahid7040](https://github.com/syedmujahid7040)
 
+## Privacy
+
+The add-in collects no data and never connects to the internet. See the [privacy policy](PRIVACY.md).
+
 ## License
 
 [MIT](LICENSE) © 2026 Syed Mujahid

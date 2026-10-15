@@ -27,6 +27,9 @@ Copy-paste text and checklist for the Autodesk App Store submission form.
 | Upload | `dist/ParametricAirfoil.bundle-1.0.0.zip` (built by `python tools/build_release.py`) |
 | Icon | `docs/icon.png` (512 × 512) |
 | Support / docs URL | https://github.com/syedmujahid7040/parametric-airfoil-fusion360 |
+| Privacy policy URL | https://github.com/syedmujahid7040/parametric-airfoil-fusion360/blob/main/PRIVACY.md |
+| Screenshots | `docs/store-screenshots/1-dialog.jpg` … `5-resized-wing.jpg` (1920 × 1080) |
+| Video | `brag.mp4` launch video (upload to YouTube, paste the link) |
 
 ### Short description (one line)
 
@@ -48,6 +51,8 @@ Features:
 • Free and open source (MIT)
 
 Built by Syed Mujahid while designing a VTOL UAV from scratch.
+
+Privacy policy: https://github.com/syedmujahid7040/parametric-airfoil-fusion360/blob/main/PRIVACY.md (the add-in collects no data).
 
 ### Quick-start / help page
 
