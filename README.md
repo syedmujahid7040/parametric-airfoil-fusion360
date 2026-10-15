@@ -23,6 +23,8 @@ I hit this while designing a VTOL UAV from scratch in Fusion. Existing airfoil a
 
 ## The solution
 
+<p align="center"><img src="docs/demo.gif" width="800" alt="Generate a Clark Y airfoil, extrude it, then change RootChord in Change Parameters and the wing resizes"></p>
+
 **Parametric Airfoil** builds the airfoil as a fully constrained, parameter-driven sketch:
 
 - **Every spline point is dimensioned** with an expression of two user parameters — the chord (e.g. `RootChord`) and the trailing-edge thickness (`TE_Thk`).
