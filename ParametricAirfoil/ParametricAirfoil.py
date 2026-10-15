@@ -138,10 +138,6 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             sel.addSelectionFilter('PlanarFaces')
             sel.setSelectionLimits(1, 1)
             sel.tooltip = 'The airfoil is drawn on this plane with its leading edge at the sketch origin.'
-            try:
-                sel.addSelection(design.rootComponent.xYConstructionPlane)   # XY plane by default
-            except Exception:
-                pass
 
             chord_name = inputs.addStringValueInput('chordname', 'Chord parameter', 'RootChord')
             chord_name.tooltip = 'Name of the user parameter that drives the chord. Use a new name (e.g. TailChord) for a second airfoil.'
@@ -286,32 +282,80 @@ def _resolve_plane(entity, design):
     return comp, native
 
 
-def look_at_sketch(sk, chord):
-    """Point the camera straight at the sketch plane: sketch X to the right, sketch Y up, so the airfoil
-    is seen flat (like a 2D drawing) with the leading edge on the left, whichever plane was used."""
-    m = sk.transform                                   # sketch space -> model space
-    o = adsk.core.Point3D.create(0.5 * chord, 0, 0)
-    o.transformBy(m)
-    xd = adsk.core.Vector3D.create(1, 0, 0); xd.transformBy(m)
-    yd = adsk.core.Vector3D.create(0, 1, 0); yd.transformBy(m)
-    n = xd.crossProduct(yd); n.normalize(); yd.normalize()
-    comp = sk.parentComponent
+def _world_up():
+    """World 'up' as set in Fusion preferences (Z-up or Y-up)."""
+    try:
+        o = _app.preferences.generalPreferences.defaultModelingOrientation
+        if o == adsk.core.DefaultModelingOrientations.YUpModelingOrientation:
+            return adsk.core.Vector3D.create(0, 1, 0)
+    except Exception:
+        pass
+    return adsk.core.Vector3D.create(0, 0, 1)
+
+
+def _sketch_to_world(sk):
+    """Matrix from sketch space to world space (includes the occurrence transform for sub-components)."""
+    m = sk.transform.copy()
     design = _design()
-    if comp != design.rootComponent:                   # sketch in a sub-component: go to world space
+    comp = sk.parentComponent
+    if comp != design.rootComponent:
         occs = design.rootComponent.allOccurrencesByComponent(comp)
         if occs.count:
-            t = occs.item(0).transform2
-            o.transformBy(t); yd.transformBy(t); n.transformBy(t)
+            m.transformBy(occs.item(0).transform2)
+    return m
+
+
+def _orientation(sk):
+    """Pick the in-sketch chord direction c and thickness direction t (each one of +/-X, +/-Y of the sketch)
+    so the airfoil sits upright in the world: thickness along world up, chord horizontal and pointing
+    toward +X (or +Y / +Z when the plane contains no X direction).
+    Returns ((cx, cy), (tx, ty)) as 2D unit vectors in sketch space."""
+    m = _sketch_to_world(sk)
+    axes = []
+    for v2 in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        v = adsk.core.Vector3D.create(v2[0], v2[1], 0)
+        v.transformBy(m)
+        v.normalize()
+        axes.append((v2, v))
+    up = _world_up()
+    t2, tv = max(axes, key=lambda a: a[1].dotProduct(up))
+    if tv.dotProduct(up) < 0.5:
+        # plane faces up (a "top" plane): there is no up direction in it - keep the sketch's own axes
+        return (1, 0), (0, 1)
+    cands = [a for a in axes if abs(a[0][0] * t2[0] + a[0][1] * t2[1]) == 0]   # perpendicular to t
+    prefs = [adsk.core.Vector3D.create(1, 0, 0), adsk.core.Vector3D.create(0, 1, 0), adsk.core.Vector3D.create(0, 0, 1)]
+    for pref in prefs:
+        best = max(cands, key=lambda a: a[1].dotProduct(pref))
+        if best[1].dotProduct(pref) > 0.5:
+            return best[0], t2
+    return cands[0][0], t2
+
+
+def _p2(c, t, along_c, along_t):
+    """Sketch point at (along_c, along_t) in the airfoil's own (chord, thickness) axes."""
+    return adsk.core.Point3D.create(c[0] * along_c + t[0] * along_t, c[1] * along_c + t[1] * along_t, 0)
+
+
+def look_at_sketch(sk, chord, c, t):
+    """Turn the camera to face the airfoil: thickness direction up, chord to the right (leading edge
+    on the left), orthographic, framed on the airfoil."""
+    m = _sketch_to_world(sk)
+    o = _p2(c, t, 0.5 * chord, 0)
+    o.transformBy(m)
+    cw = adsk.core.Vector3D.create(c[0], c[1], 0); cw.transformBy(m); cw.normalize()
+    tw = adsk.core.Vector3D.create(t[0], t[1], 0); tw.transformBy(m); tw.normalize()
+    d = cw.crossProduct(tw)                            # eye direction that puts chord on screen-right
+    d.normalize()
+    d.scaleBy(4 * chord)
+    eye = o.copy()
+    eye.translateBy(d)
     vp = _app.activeViewport
     cam = vp.camera
     cam.isSmoothTransition = True
     cam.cameraType = adsk.core.CameraTypes.OrthographicCameraType
     cam.target = o
-    eye = o.copy()
-    n.scaleBy(4 * chord)
-    eye.translateBy(n)
     cam.eye = eye
-    cam.upVector = yd
+    cam.upVector = tw
     cam.isFitView = False
     cam.viewExtents = 0.75 * chord                     # frame the airfoil itself, not the whole model
     vp.camera = cam
@@ -334,6 +378,13 @@ def build_airfoil(plane, label, X, YU, YL, chord_name, chord_cm, te_name, te_cm,
     sk = comp.sketches.add(plane_ent)
     sk.name = _unique_sketch_name(comp, 'Airfoil_%s_%s' % (safe, chord_name))
 
+    # chord / thickness directions inside the sketch, so the airfoil is upright in the world
+    c, t = _orientation(sk)
+    H = adsk.fusion.DimensionOrientations.HorizontalDimensionOrientation
+    V = adsk.fusion.DimensionOrientations.VerticalDimensionOrientation
+    chord_dir = H if c[0] != 0 else V                # dimension orientation along the chord
+    thick_dir = V if c[0] != 0 else H                # ... and across it
+
     try:
         sk.isComputeDeferred = True
     except Exception:
@@ -342,7 +393,7 @@ def build_airfoil(plane, label, X, YU, YL, chord_name, chord_cm, te_name, te_cm,
         pts = adsk.core.ObjectCollection.create()
         for row in rows:
             x, y = core.point_xy(row, chord, te)
-            pts.add(adsk.core.Point3D.create(x, y, 0))
+            pts.add(_p2(c, t, x, y))
         spline = sk.sketchCurves.sketchFittedSplines.add(pts)
         fps = spline.fitPoints
         if fps.count != len(rows):
@@ -351,16 +402,18 @@ def build_airfoil(plane, label, X, YU, YL, chord_name, chord_cm, te_name, te_cm,
         origin = sk.originPoint
         dims = sk.sketchDimensions
         cons = sk.geometricConstraints
-        H = adsk.fusion.DimensionOrientations.HorizontalDimensionOrientation
-        V = adsk.fusion.DimensionOrientations.VerticalDimensionOrientation
 
-        # Reference point one chord below the origin. Vertical dimensions are measured from here so
-        # they are always positive, even where a cambered lower surface rises above the chord line.
-        ref_line = sk.sketchCurves.sketchLines.addByTwoPoints(origin, adsk.core.Point3D.create(0, -chord, 0))
+        # Reference point one chord "below" the origin (against the thickness direction). Thickness
+        # dimensions are measured from here so they are always positive, even where a cambered lower
+        # surface rises above the chord line.
+        ref_line = sk.sketchCurves.sketchLines.addByTwoPoints(origin, _p2(c, t, 0, -chord))
         ref_line.isConstruction = True
-        cons.addVertical(ref_line)
+        if thick_dir == V:
+            cons.addVertical(ref_line)
+        else:
+            cons.addHorizontal(ref_line)
         ref = ref_line.endSketchPoint
-        d = dims.addDistanceDimension(origin, ref, V, adsk.core.Point3D.create(-0.3 * chord, -0.5 * chord, 0))
+        d = dims.addDistanceDimension(origin, ref, thick_dir, _p2(c, t, -0.3 * chord, -0.5 * chord))
         d.parameter.expression = chord_name
 
         for i, row in enumerate(rows):
@@ -368,11 +421,11 @@ def build_airfoil(plane, label, X, YU, YL, chord_name, chord_cm, te_name, te_cm,
             if i == le_index:
                 cons.addCoincident(fp, origin)
                 continue
-            g = fp.geometry
+            x, y = core.point_xy(row, chord, te)
             h_expr, v_expr = core.expressions(row, chord_name, te_name)
-            dh = dims.addDistanceDimension(origin, fp, H, adsk.core.Point3D.create(g.x, -0.6 * chord, 0))
+            dh = dims.addDistanceDimension(origin, fp, chord_dir, _p2(c, t, x, -0.6 * chord))
             dh.parameter.expression = h_expr
-            dv = dims.addDistanceDimension(ref, fp, V, adsk.core.Point3D.create(-0.15 * chord, g.y, 0))
+            dv = dims.addDistanceDimension(ref, fp, thick_dir, _p2(c, t, -0.15 * chord, y))
             dv.parameter.expression = v_expr
 
         # close the blunt trailing edge so the profile is always a single closed region
@@ -388,7 +441,7 @@ def build_airfoil(plane, label, X, YU, YL, chord_name, chord_cm, te_name, te_cm,
         pass
     if look_at:
         try:
-            look_at_sketch(sk, chord)
+            look_at_sketch(sk, chord, c, t)
         except Exception:
             pass                                     # the view is a convenience; never fail the command
 

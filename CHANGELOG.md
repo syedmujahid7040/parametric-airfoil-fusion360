@@ -6,5 +6,6 @@
 - Import any Selig or Lednicer `.dat` file, resampled with cosine spacing.
 - Chord and trailing-edge thickness driven by user parameters.
 - Blunt trailing edge closed with a line, so the profile always extrudes and lofts.
-- Sketch on any construction plane or planar face (XY selected by default).
+- Sketch on any construction plane or planar face.
+- Airfoil is placed upright on any plane: chord horizontal, upper surface toward world up (Z-up or Y-up).
 - View turns to face the new airfoil, leading edge on the left (can be switched off).

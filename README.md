@@ -58,7 +58,7 @@ I hit this while designing a VTOL UAV from scratch in Fusion. Existing airfoil a
 
 1. In the **DESIGN** workspace, click **SOLID → CREATE → Parametric Airfoil** (the airfoil icon on the toolbar).
 2. Choose the **Airfoil**: `Clark Y`, `NACA 0009`, or `Import .dat file...`.
-3. Select the **Plane** to draw on (XY is selected by default). The leading edge sits on the sketch origin and the chord runs along the sketch +X axis. With **Look at airfoil** on, the view turns to face the new airfoil.
+3. Select the **Plane** to draw on. The leading edge sits on the sketch origin; the airfoil is placed upright — chord horizontal, upper surface facing up — whichever plane you pick. With **Look at airfoil** on, the view turns to face the new airfoil.
 4. Set the **Chord parameter** name and **Chord length** (e.g. `RootChord` = 280 mm).
 5. Set the **Trailing-edge thickness** (≥ 0.5 mm recommended; 1 mm prints well).
 6. Click **OK**. Extrude or loft the profile as usual.

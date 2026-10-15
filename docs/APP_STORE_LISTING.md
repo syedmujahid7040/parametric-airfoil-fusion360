@@ -53,7 +53,7 @@ Built by Syed Mujahid while designing a VTOL UAV from scratch.
 
 1. In the DESIGN workspace click SOLID > CREATE > Parametric Airfoil (airfoil icon on the toolbar).
 2. Choose Clark Y, NACA 0009, or Import .dat file....
-3. Select a plane. The leading edge is placed on the sketch origin, chord along +X.
+3. Select a plane. The leading edge is placed on the sketch origin, with the chord horizontal and the upper surface facing up.
 4. Enter the chord parameter name and chord length (e.g. RootChord = 280 mm) and the trailing-edge thickness (1 mm recommended).
 5. Click OK, then Extrude or Loft the profile.
 6. To resize: MODIFY > Change Parameters, edit RootChord.
